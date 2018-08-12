@@ -5,6 +5,7 @@
 * Example: LoadDomainHostSettings(C:\Users\Name\Desktop\Test\TestApp.exe)
 ```csharp
 LoadDomainHostSettings(string applicationPath)
+HostDomain()
 ```
 
 ## Credits
