@@ -1,47 +1,63 @@
-﻿using System;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+﻿//#define LAUNCH_MDA
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using RGiesecke.DllExport;
+using System.Windows.Forms;
 
 namespace DomainWrapper
 {
+    // The exported methods to call our methods to host a proxy domain in order to run injected .net code inside of a process smoothly.
     public static class PatchedDomainLoader
     {
-        internal static string ApplicationToHostName;
+        #region Fields, Private Properties
 
-        [MarshalAs(UnmanagedType.LPWStr)] internal static string ApplicationToHostDirectory;
+        internal static string ApplicationArguments = "-blah -bleh";
+        internal static string ApplicationToHostName = "Amalgama_Hook.dll";
 
+        [MarshalAs(UnmanagedType.LPWStr)] internal static string ApplicationToHostDirectory =
+            @"E:\NewDev-2016\MyForks\Amalgama\Debug";
+        #endregion
+
+        //todo do we need to dllexport this?
+        [DllExport]
         [STAThread]
         public static void HostDomain()
         {
 #if LAUNCH_MDA
             System.Diagnostics.Debugger.Launch();
 #endif
-            var directory = Path.GetDirectoryName(ApplicationToHostDirectory);
-            // ReSharper disable once AssignNullToNotNullAttribute
-            var exists = Directory.Exists(directory);
-            Trace.Assert(exists);
+            if (string.IsNullOrEmpty(ApplicationToHostName) || string.IsNullOrEmpty(ApplicationToHostDirectory))
+            {
+                throw new InvalidDataException("You must set LoadDomainHostSettings before calling HostDomain()");
+            }
             try
             {
-                using (var host = new PathedDomainHost(ApplicationToHostDirectory))
+                if (ApplicationToHostName.EndsWith("exe") || ApplicationToHostName.EndsWith("dll"))
                 {
-                    host.Execute();
+                    Startup.EntryPoint(Path.Combine(ApplicationToHostDirectory, ApplicationToHostName), ApplicationArguments);
+                }
+                else
+                {
+                    MessageBox.Show("Invalid file type, SharpDomain can only load exe/dll files");
                 }
             }
             catch (Exception e)
             {
-               Trace.WriteLine(e.ToString());
+                MessageBox.Show(e.ToString());
             }
         }
 
-        [DllExport("LoadDomainSettings", CallingConvention.StdCall)]
-        public static void LoadDomainHostSettings([MarshalAs(UnmanagedType.LPWStr)] string applicationPath)
+        internal static void ShowError(Exception ex)
         {
-            ApplicationToHostDirectory = applicationPath;
-            ApplicationToHostName = Path.GetFileNameWithoutExtension(applicationPath);
-            HostDomain();
+            MessageBox.Show(ex.ToString(), "SharpDomain Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        [DllExport("LoadDomainSettings", CallingConvention.Cdecl)]
+        public static void LoadDomainHostSettings(string loadDirectory, string applicationName, string applicationArguments)
+        {
+            ApplicationToHostDirectory = loadDirectory;
+            ApplicationToHostName = applicationName;
+            ApplicationArguments = applicationArguments;
         }
     }
 }
