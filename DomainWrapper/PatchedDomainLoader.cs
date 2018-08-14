@@ -2,7 +2,6 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 
 namespace DomainWrapper
 {
@@ -19,13 +18,14 @@ namespace DomainWrapper
         #endregion
 
         //todo do we need to dllexport this?
-        [DllExport]
+        [DllExport("HostDomain", CallingConvention.Cdecl)]
         [STAThread]
         public static void HostDomain()
         {
 #if LAUNCH_MDA
             System.Diagnostics.Debugger.Launch();
 #endif
+
             if (string.IsNullOrEmpty(ApplicationToHostName) || string.IsNullOrEmpty(ApplicationToHostDirectory))
             {
                 throw new InvalidDataException("You must set LoadDomainHostSettings before calling HostDomain()");
@@ -34,25 +34,25 @@ namespace DomainWrapper
             {
                 if (ApplicationToHostName.EndsWith("exe") || ApplicationToHostName.EndsWith("dll"))
                 {
-                    Startup.EntryPoint(Path.Combine(ApplicationToHostDirectory, ApplicationToHostName), ApplicationArguments);
-                }
-                else
-                {
-                    MessageBox.Show("Invalid file type, SharpDomain can only load exe/dll files");
+                    new SharpDomain(Path.Combine(ApplicationToHostDirectory, ApplicationToHostName), ApplicationArguments);
                 }
             }
             catch (Exception e)
             {
-                MessageBox.Show(e.ToString());
+                throw new FileLoadException(e.ToString());
+            }
+            finally
+            {
+                AppDomain.Unload(AppDomain.CurrentDomain);
             }
         }
 
         internal static void ShowError(Exception ex)
         {
-            MessageBox.Show(ex.ToString(), "SharpDomain Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            throw new Exception(ex.ToString());
         }
 
-        [DllExport("LoadDomainSettings", CallingConvention.Cdecl)]
+        [DllExport("LoadDomainHostSettings", CallingConvention.Cdecl)]
         public static void LoadDomainHostSettings(string loadDirectory, string applicationName, string applicationArguments)
         {
             ApplicationToHostDirectory = loadDirectory;

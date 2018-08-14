@@ -2,9 +2,6 @@
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Windows.Forms;
 
 namespace DomainWrapper
 {
@@ -13,12 +10,12 @@ namespace DomainWrapper
         void LoadAndRun(string file, string args);
     }
 
+    /*
     public class Startup
     {
-        private const Keys ReloadKey = Keys.F11;
-        private const Keys StopKey = Keys.F12;
+        //private const Keys ReloadKey = Keys.F11;
+        //private const Keys StopKey = Keys.F12;
 
-        [STAThread]
         public static int EntryPoint(string filePath, string args = "")
         {
             bool firstLoaded = false;
@@ -29,26 +26,37 @@ namespace DomainWrapper
                 if (!firstLoaded)
                 {
                     firstLoaded = true;
-                    new SharpDomain(filePath, args);
+                    using (var host = new SharpDomain(filePath, args))
+                    {
+
+                    }
+                    //new SharpDomain(filePath, args);
                 }
-                if ((GetAsyncKeyState((int) ReloadKey) & 1) == 1)
-                {
-                    // this seems to generate a memory leak if spammed ?
-                    new SharpDomain(filePath, args);
-                }
-                if ((GetAsyncKeyState((int) StopKey) & 1) == 1)
-                {
-                    running = false;
-                }
+                //if ((GetAsyncKeyState((int)ReloadKey) & 1) == 1)
+                //{
+                //    MessageBox.Show("Reload key detected");
+                //    // this seems to generate a memory leak if spammed ?
+                //    using (var host = new SharpDomain(filePath, args))
+                //    {
+
+                //    }
+                //    //new SharpDomain(filePath, args);
+                //}
+                //if ((GetAsyncKeyState((int)StopKey) & 1) == 1)
+                //{
+                //    MessageBox.Show("Stop key detected");
+                //    running = false;
+                //}
 
                 Thread.Sleep(10);
             }
             return 0;
         }
 
-        [DllImport("User32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
+        //[DllImport("User32.dll")]
+        //private static extern short GetAsyncKeyState(int vKey);
     }
+    */
 
     public static class DomainManager
     {
@@ -69,15 +77,12 @@ namespace DomainWrapper
         {
             Assembly asm = Assembly.Load(file);
 
-            var staMethods =
-                asm.GetTypes()
-                    .SelectMany(t => t.GetMethods())
-                    .Where(m => m.GetCustomAttributes(typeof (STAThreadAttribute), false).Length > 0)
-                    .ToArray();
+            var staMethods = asm.GetTypes().SelectMany(t => t.GetMethods())
+                    .Where(m => m.GetCustomAttributes(typeof (STAThreadAttribute), false).Length > 0).ToArray();
 
-            if (staMethods.Count() != 1)
+            if (staMethods.Length != 1)
             {
-                if (!staMethods.Any())
+                if (staMethods.Length == 0)
                 {
                     PatchedDomainLoader.ShowError(new Exception("Unable to find entry function with [STAThread] attribute"));
                     return;
@@ -108,7 +113,7 @@ namespace DomainWrapper
 
             string appDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             string shortAsmName = Path.GetFileName(args.Name);
-            if (appDir == null || shortAsmName == null)
+            if (string.IsNullOrEmpty(appDir) || string.IsNullOrEmpty(shortAsmName))
             {
                 return null;
             }
@@ -144,7 +149,7 @@ namespace DomainWrapper
                 DomainManager.CurrentAssemblyLoader =
                     (WSharpAssemblyLoader)
                         DomainManager.CurrentDomain.CreateInstanceAndUnwrap(Assembly.GetExecutingAssembly().FullName,
-                            typeof (WSharpAssemblyLoader).FullName);
+                            typeof(WSharpAssemblyLoader).FullName);
 
                 string fileToLoadAndRun = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                     assemblyName);
@@ -156,12 +161,13 @@ namespace DomainWrapper
             }
             finally
             {
+                DomainManager.CurrentDomain = null;
                 DomainManager.CurrentAssemblyLoader = null;
                 AppDomain.Unload(DomainManager.CurrentDomain);
             }
         }
 
-        Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
         {
             try
             {
@@ -179,8 +185,7 @@ namespace DomainWrapper
 
             // *** note: this wont work for special search paths
             string[] parts = args.Name.Split(',');
-            string file = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\" + parts[0].Trim() +
-                          ".dll";
+            string file = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\" + parts[0].Trim() + ".dll";
             return Assembly.LoadFrom(file);
         }
     }
