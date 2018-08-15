@@ -14,7 +14,7 @@ namespace DomainWrapper
         internal static string ApplicationToHostName = "Amalgama_Hook.dll";
 
         [MarshalAs(UnmanagedType.LPWStr)] internal static string ApplicationToHostDirectory =
-            @"E:\NewDev-2016\MyForks\Amalgama\Debug";
+            @"E:\newdev-2018\testcase";
         #endregion
 
         //todo do we need to dllexport this?
