@@ -164,8 +164,8 @@ namespace DomainWrapper
                 DomainManager.CurrentAssemblyLoader = null;
                 if (DomainManager.CurrentDomain != null)
                 {
-                    DomainManager.CurrentDomain = null;
                     AppDomain.Unload(DomainManager.CurrentDomain);
+                    DomainManager.CurrentDomain = null;
                 }
             }
         }

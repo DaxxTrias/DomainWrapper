@@ -43,7 +43,11 @@ namespace DomainWrapper
             }
             finally
             {
-                AppDomain.Unload(AppDomain.CurrentDomain);
+                if (DomainManager.CurrentDomain != null)
+                {
+                    AppDomain.Unload(DomainManager.CurrentDomain);
+                    DomainManager.CurrentDomain = null;
+                }
             }
         }
 
